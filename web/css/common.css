@@ -1,0 +1,29 @@
+body, html {
+	border: 0;
+	margin: 0;
+	outline: 0;
+	padding: 0;
+	height: 100%;
+}
+
+.container {
+	min-height: 100%;
+}
+
+.container::after {
+	content: "";
+	display: block;
+	height: 100px;
+}
+
+footer {
+	border: 0;
+	margin-top: -62px;
+	position: relative;
+	display: block;
+	font-family: "open-sans", "Helvetica", sans-serif;
+	font-size: 14px;
+	font-weight: normal;
+	text-align: center;
+	text-transform: uppercase;
+}
