@@ -115,7 +115,10 @@ class application(object):
 			self.params = json.loads(b''.join(L))
 
 	def __iter__(self):
-		return self.handle_route(self.path, self.params, SimpleCookie(self.env.get('HTTP_COOKIE')), None)
+		try:
+			return self.handle_route(self.path, self.params, SimpleCookie(self.env.get('HTTP_COOKIE')), None)
+		except Exception as e:
+			return self.print_trace(e)
 
 
 	# ooooo   ooooo       .o.       ooooo      ooo oooooooooo.   ooooo        oooooooooooo
@@ -139,18 +142,13 @@ class application(object):
 					if getattr(getattr(mod, k), '____isRoute__', False)}
 			except IOError:
 				return self.send_error(404, 'Route module "%s" not found' % moduleName)
-			except Exception as e:
-				return self.print_trace(e)
 
 		module = self.MODULES[moduleName]
 		if routeName not in module:
 			return self.send_error(404, 'Route "%s" not found' % routeName)
 		route = module[routeName]
 
-		try:
-			t, cookie, result = route(cookies, **params)
-		except Exception as e:
-			return self.print_trace(e)
+		t, cookie, result = route(cookies, **params)
 
 		cookie is not None and cookies.load(cookie)
 		if set_cookie:
@@ -248,7 +246,7 @@ class application(object):
 			self.content = ''
 
 		def __getitem__(self, content):
-			self.content += content
+			self.content += str(content)
 
 		def __getattr__(self, key):
 			def dump(data):
@@ -270,10 +268,10 @@ class application(object):
 			for i , code_seg in enumerate(code_segs):
 				prefix, code_seg = code_seg[:-2].split('<?python')
 				prefix = prefix.lstrip('\r\n')
-				codes = code_seg.split('\r\n')
+				codes = code_seg.split('\n')
 				for code in codes:
+					code = code.strip('\r\n')
 					if not code.strip(): continue
-					code = code.lstrip('\r\n')
 					assert code.startswith(prefix), (prefix, code)
 					code = code[len(prefix):].rstrip()
 					indent = code[:-len(code.lstrip())]
