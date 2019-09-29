@@ -19,11 +19,13 @@ if sys.version_info[0] == 3:
 	from urllib.parse import quote, urlencode
 	from urllib.request import Request, urlopen
 	from http.cookies import SimpleCookie
+	def encodeUTF8(s): return s.encode('utf-8', 'replace')
 else:
 	import urlparse
 	from urllib import quote, urlencode
 	from urllib2 import Request, urlopen
 	from Cookie import SimpleCookie
+	def encodeUTF8(s): return s
 
 def exec_delegate(code, globals):
 	exec(code, globals)
@@ -168,7 +170,7 @@ class application(object):
 		else:
 			content_type = 'text/html'
 			result = self.template(route.____template__, result)
-		result = result.encode('utf-8', 'replace')
+		result = encodeUTF8(result)
 
 		headers = [('Content-type', content_type)]
 		if cookie is not None:
@@ -188,7 +190,7 @@ class application(object):
 	#
 	def send_error(self, code, message):
 		self.start_response('%d %s' % (code, message), [('Content-Type', 'text/html')])
-		return iter([("""\
+		return iter([encodeUTF8("""\
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
         "http://www.w3.org/TR/html4/strict.dtd">
 <html>
@@ -202,7 +204,7 @@ class application(object):
         <p>Message: %(message)s.</p>
     </body>
 </html>
-""" % {'code': code, 'message': message}).encode('utf-8', 'replace')])
+""" % {'code': code, 'message': message})])
 
 	def print_trace(self, e):
 		# internal error, report as HTTP server error
@@ -226,7 +228,7 @@ class application(object):
 				headers.append(('Set-Cookie', value.OutputString()))
 		if not url.startswith('http'):
 			url = 'http://' + url
-		headers.append(('Location', url if isinstance(url, str) else url.encode('utf-8', 'replace')))
+		headers.append(('Location', url if isinstance(url, str) else encodeUTF8(url)))
 		self.start_response('302 Found', headers)
 		return iter([''.encode()])
 
