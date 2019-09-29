@@ -1,0 +1,141 @@
+.occlusion-page {
+	color: #fefdf8;
+	background-color: #3c4859;
+}
+
+.occlusion-intro {
+	margin: auto;
+	max-width: 80%;
+}
+
+.occlusion-intro h1 {
+	border-color: #fefdf8;
+	border-top: 4px solid;
+	margin: 2px auto 30px;
+	padding: 15px 0 0;
+	text-align: center;
+	font-family: 'Comic Sans MS', cursive;
+	font-weight: bold;
+	font-size: 4em;
+	font-style: italic;
+	text-transform: uppercase;
+	line-height: 1;
+}
+
+.occlusion-tasks ul {
+	margin: auto;
+	max-width: 80%;
+	font-size: 14px;
+	line-height: 1.45;
+	font-family: 'Source Sans Pro', Helvetica, sans-serif;
+	list-style: none;
+	padding-left: 0;
+	margin-bottom: 1rem;
+}
+
+.occlusion-queue {
+	border: 1px solid #234;
+	margin-bottom: .1rem;
+	background: linear-gradient(to right,#666666 0,#666666 10px,#456 10px,#456 100%) no-repeat;
+}
+
+.occlusion-queue .occlusion-task-name svg {
+	width: 20px;
+	height: 20px;
+	fill: #ccc;
+}
+
+.occlusion-history.success {
+	border: 1px solid #234;
+	margin-bottom: .1rem;
+	background: linear-gradient(to right,#39aa56 0,#39aa56 10px,#456 10px,#456 100%) no-repeat;
+}
+
+.occlusion-history.success .occlusion-task-name svg {
+	stroke: #39aa56;
+	fill: none;
+}
+
+.occlusion-history.failure {
+	border: 1px solid #234;
+	margin-bottom: .1rem;
+	background: linear-gradient(to right,#db4545 0,#db4545 10px,#456 10px,#456 100%) no-repeat;
+}
+
+.occlusion-history.failure .occlusion-info.finish-time {
+	display: none;
+}
+
+.occlusion-history.failure .occlusion-info.revision {
+	display: none;
+}
+
+.occlusion-history.failure .occlusion-task-name svg {
+	stroke: #db4545;
+	fill: none;
+}
+
+.occlusion-task {
+	display: flex;
+}
+
+.occlusion-task-name {
+	padding: .4em 1em;
+	flex: 0 1 80%;
+	position: relative;
+}
+
+.occlusion-task-name svg {
+	width: 16px;
+	height: 16px;
+	margin-right: 4px;
+	display: inline-block;
+	vertical-align: middle;
+}
+
+.occlusion-task-name span {
+	line-height: 1.5;
+	vertical-align: middle;
+}
+
+.occlusion-infos {
+	padding-left: 26px;
+	display: flex;
+}
+
+.occlusion-info {
+	padding: .4em 1em;
+	flex: 0 1 17%;
+	position: relative;
+}
+
+.occlusion-info svg {
+	width: 16px;
+	height: 16px;
+	margin-right: 4px;
+	display: inline-block;
+	vertical-align: middle;
+	stroke: #eee;
+	fill: none;
+}
+
+.occlusion-info span {
+	line-height: 1.5;
+	vertical-align: middle;
+}
+
+.occlusion-info.chunks svg {
+	fill: #eee;
+}
+
+.occlusion-info.volumes svg {
+	width: 20px;
+	height: 20px;
+	fill: #eee;
+}
+
+.occlusion-info.finish-time svg {
+	width: 20px;
+	height: 20px;
+	fill: #eee;
+}
