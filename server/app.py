@@ -59,12 +59,22 @@ def redirect(path, cookie = None):
 def forward(path, cookie = None, **args):
 	return ROUTE_FORWARD, cookie, (path, args)
 
-def route(path):
+def route(path = '', useCookies = False, useSubmit = False):
 	if callable(path):
 		func = path
+		func.____useCookies__ = useCookies
+		func.____useSubmit__ = useSubmit
 		func.____template__ = None
 		func.____isRoute__ = True
 		return func
+	elif not path:
+		def _route(func):
+			func.____useCookies__ = useCookies
+			func.____useSubmit__ = useSubmit
+			func.____template__ = None
+			func.____isRoute__ = True
+			return func
+		return _route
 
 	assert path.endswith(TEMPLATE_EXT), 'template "%s" should ends with "%s"!' % (path, TEMPLATE_EXT)
 
@@ -73,6 +83,8 @@ def route(path):
 			func.____template__ = '/%s/%s' % (func.__module__.rpartition('.')[-1], path)
 		else:
 			func.____template__ = path
+		func.____useCookies__ = useCookies
+		func.____useSubmit__ = useSubmit
 		func.____isRoute__ = True
 		return func
 
@@ -94,31 +106,24 @@ class application(object):
 	def __init__(self, env, start_response):
 		self.env = env
 		self.start_response = start_response
-		self.params = {k: v if len(v) > 1 else v[0] for k, v in urlparse.parse_qs(env['QUERY_STRING']).items()}
-
-		assert self.env['PATH_INFO'].startswith(config.URL_ROOT)
-		self.path = self.env['PATH_INFO'][len(config.URL_ROOT):]
-
-		if env['REQUEST_METHOD'] == 'POST':
-			# Get arguments by reading body of request.
-			# We read this in chunks to avoid straining
-			# socket.read(); around the 10 or 15Mb mark, some platforms
-			# begin to have problems (bug #792570).
-			max_chunk_size = 10*1024*1024
-			size_remaining = int(env['CONTENT_LENGTH'])
-			L = []
-			while size_remaining:
-				chunk_size = min(size_remaining, max_chunk_size)
-				chunk = env['wsgi.input'].read(chunk_size)
-				if not chunk:
-					break
-				L.append(chunk)
-				size_remaining -= len(L[-1])
-			self.params = json.loads(b''.join(L))
 
 	def __iter__(self):
+		params = {k: v if len(v) > 1 else v[0] for k, v in urlparse.parse_qs(self.env['QUERY_STRING']).items()}
+
+		assert self.env['PATH_INFO'].startswith(config.URL_ROOT)
+		route = self.dispatch(self.env['PATH_INFO'][len(config.URL_ROOT):])
+		if not callable(route): return route
+
+		if route.____useSubmit__:
+			params['submit'] = self.input_reader()
+		elif self.env['REQUEST_METHOD'] == 'POST':
+			L = []
+			for chunk in self.input_reader():
+				L.append(chunk)
+			params = json.loads(b''.join(L))
+
 		try:
-			return self.handle_route(self.path, self.params, SimpleCookie(self.env.get('HTTP_COOKIE')), None)
+			return self.handle_route(route, params, SimpleCookie(self.env.get('HTTP_COOKIE')), None)
 		except Exception as e:
 			return self.print_trace(e)
 
@@ -131,8 +136,23 @@ class application(object):
 	#  888     888   .8'     `888.   8       `888   888     d88'  888       o  888       o
 	# o888o   o888o o88o     o8888o o8o        `8  o888bood8P'   o888ooooood8 o888ooooood8
 	#
-	def handle_route(self, path, params, cookies, set_cookie):
-		"""Common code for GET and POST commands to handle route and send json result."""
+	def input_reader(self):
+		# Get arguments by reading body of request.
+		# We read this in chunks to avoid straining
+		# socket.read(); around the 10 or 15Mb mark, some platforms
+		# begin to have problems (bug #792570).
+		max_chunk_size = 10*1024*1024
+		size_remaining = int(self.env['CONTENT_LENGTH'])
+		while size_remaining:
+			chunk_size = min(size_remaining, max_chunk_size)
+			chunk = self.env['wsgi.input'].read(chunk_size)
+			if not chunk:
+				break
+			size_remaining -= len(chunk)
+			yield chunk
+
+	def dispatch(self, path):
+		"""Common code for GET and POST commands to dispatch request."""
 		moduleName, routeName = list(filter(None, path.split('/')))[:2]
 
 		# load module
@@ -144,13 +164,20 @@ class application(object):
 					if getattr(getattr(mod, k), '____isRoute__', False)}
 			except IOError:
 				return self.send_error(404, 'Route module "%s" not found' % moduleName)
+			except Exception as e:
+				return self.print_trace(e)
 
 		module = self.MODULES[moduleName]
 		if routeName not in module:
 			return self.send_error(404, 'Route "%s" not found' % routeName)
-		route = module[routeName]
+		return module[routeName]
 
-		t, cookie, result = route(cookies, **params)
+	def handle_route(self, route, params, cookies, set_cookie):
+		"""Common code for GET and POST commands to handle route and send json result."""
+		if route.____useCookies__:
+			t, cookie, result = route(cookies = cookies, **params)
+		else:
+			t, cookie, result = route(**params)
 
 		cookie is not None and cookies.load(cookie)
 		if set_cookie:
@@ -162,7 +189,8 @@ class application(object):
 		if t == ROUTE_REDIRECT:
 			return self.redirect(result, cookie)
 		elif t == ROUTE_FORWARD:
-			return self.handle_route(result[0], result[1], cookies, cookie)
+			route = self.dispatch(result[0])
+			return callable(route) and route or self.handle_route(route, result[1], cookies, cookie)
 
 		if route.____template__ is None:
 			content_type = 'text/json'
@@ -228,7 +256,7 @@ class application(object):
 				headers.append(('Set-Cookie', value.OutputString()))
 		if not url.startswith('http'):
 			url = 'http://' + url
-		headers.append(('Location', url if isinstance(url, str) else encodeUTF8(url)))
+		headers.append(('Location', url if isinstance(url, str) else url.encode('utf-8')))
 		self.start_response('302 Found', headers)
 		return iter([''.encode()])
 
@@ -250,10 +278,8 @@ class application(object):
 		def __getitem__(self, content):
 			self.content += str(content)
 
-		def __getattr__(self, key):
-			def dump(data):
-				self.content += '<script type="text/javascript">var %s = %s;</script>' % (key, json.dumps(data) or "null")
-			return dump
+		def __setattr__(self, key, value):
+			self.content += '<script type="text/javascript">var %s = %s;</script>' % (key, json.dumps(value) or "null")
 
 	def template(self, path, data):
 		path = os.path.join(config.TEMPLATE, path.lstrip('/'))
